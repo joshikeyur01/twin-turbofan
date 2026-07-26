@@ -1,0 +1,31 @@
+# Core pipeline (data, features, metrics, plot, streaming demo)
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
+
+# Recommended: enables the RandomForest baseline.
+# Without it, train_baseline falls back to a numpy-only ridge regressor.
+scikit-learn>=1.3
+
+# Optional extras. Each is behind a clean import, so the core pipeline above runs
+# without them and the matching tests skip themselves rather than failing.
+#
+#   torch        sequence models (src/train_seq.py, seq_models.py, sweep.py)
+#   streamlit    live dashboard (src/dashboard.py)
+#   paho-mqtt    MQTT telemetry bus (src/telemetry.py publish/twin;
+#                `telemetry simulate` needs no broker and no paho)
+#
+# On Apple silicon install torch from a NATIVE arm64 interpreter — an x86_64 python
+# under Rosetta caps torch at 2.2.2 and loses MPS acceleration entirely.
+#
+# torch>=2.0
+# streamlit>=1.30
+# paho-mqtt>=2.0
+
+# Config layer (src/config.py). Small and pure-python. src/config.py degrades to its
+# dataclass defaults if this is missing, so a minimal numpy-only install still runs.
+PyYAML>=6.0
+
+# Dev / test. tabulate backs DataFrame.to_markdown() in the generated reports.
+pytest>=7.0
+tabulate>=0.8

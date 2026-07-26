@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Real dataset (download locally, do not commit)
+data/CMAPSSData/
+
+# Generated artifacts
+data/synthetic/
+outputs/*.pkl
+outputs/*.pt
+outputs/metrics.json
+
+# Ablation artifacts (regenerable)
+outputs/*.json
+outputs/*.pt
+
+# --- portfolio standard ---
+.DS_Store
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.swp
+
+# overnight-run scratch — kept locally, not in the published tree
+/CONTINUE.md
+/NIGHT_RUN.md
+/outputs/night_run.log
+/outputs/night_stdout.log
