@@ -1,0 +1,61 @@
+# twin-turbofan defaults.
+#
+# These values were previously scattered as literals across src/. Collecting them here
+# makes the experiment protocol auditable in one place — someone reviewing the results
+# can check the RUL cap and the scoring split without reading five modules.
+#
+# Precedence, lowest to highest:
+#   1. dataclass defaults in src/config.py  (so the code runs with no YAML at all)
+#   2. this file
+#   3. a file named by TWIN_CONFIG
+#   4. command-line flags
+#
+# Anything omitted here falls back to the dataclass default, so this file can be trimmed
+# to only the values you actually want to override.
+
+data:
+  subset: FD001
+  # Piecewise-linear RUL cap. Early life is not predictable, so the target plateaus.
+  # Changing this invalidates every recorded metric — it is part of the target definition,
+  # not a tuning knob.
+  rul_cap: 125
+
+features:
+  rolling_window: 5
+  # Variance floor below which a sensor is treated as constant and dropped.
+  variance_threshold: 0.001
+  use_rolling: true
+
+training:
+  seed: 42
+  # Fraction of ENGINES (never cycles) held out for early stopping.
+  val_frac: 0.2
+  device: auto          # auto | cpu | mps | cuda
+
+sequence_model:
+  arch: gru             # lstm | gru | cnn
+  seq_len: 50
+  hidden: 128
+  layers: 2
+  dropout: 0.2
+  lr: 0.0003
+  epochs: 80
+  batch: 256
+  patience: 10
+
+uncertainty:
+  calibration_frac: 0.3
+
+twin:
+  # Predicted RUL below this raises a maintenance alert.
+  alert_threshold: 25.0
+  mqtt:
+    host: localhost
+    port: 1883
+    topic: twin-turbofan/telemetry
+
+logging:
+  level: INFO
+  # Timestamps are omitted by default so that piping two runs into diff shows only real
+  # differences. Set true when you need wall-clock timings.
+  timestamps: false
