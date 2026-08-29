@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main, continuous-build]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MPLBACKEND: Agg
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install ruff black mypy
+      # Same path list as the Makefile's LINT_PATHS. app.py and scripts/ were missing
+      # here, so lint errors in them would have passed CI.
+      - name: ruff
+        run: ruff check src tests conftest.py app.py scripts
+      - name: black --check
+        run: black --check src tests conftest.py app.py scripts
+      - name: mypy
+        run: mypy
+
+      # Stdlib-only and instant, so it belongs in the cheap job. outputs/*.json is
+      # gitignored, so from a bare checkout this only checks the specs backed by the
+      # committed markdown reports and skips the rest — see the `docs` job below, which
+      # regenerates what it can first.
+      - name: doc numbers match outputs/
+        run: python -m src.validate_docs
+
+  # The core pipeline must stay importable and testable with no torch installed.
+  # The sequence-model tests skip themselves via importorskip, which is exactly the
+  # dependency-light guarantee the README claims - so this job proves that claim.
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt pytest-cov
+      - name: tests without torch
+        run: pytest --cov=src --cov-report=term-missing
+      - name: pipeline smoke run on synthetic data
+        run: |
+          python -m src.generate_synthetic
+          python -m src.train_baseline
+          python -m src.error_analysis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: outputs-core
+          path: outputs/
+
+  # Regenerates the artifacts that are cheap to produce, then checks the doc numbers that
+  # depend on them. The sweep and comparison artifacts cost hours of model training, so
+  # they stay out of CI and their specs skip here; that gap closes if outputs/*.json is
+  # ever committed rather than gitignored.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: regenerate the cheap artifacts
+        run: |
+          python -m src.generate_synthetic
+          python -m src.train_baseline
+          python -m src.error_analysis
+          python -m src.ablation
+      - name: doc numbers match outputs/
+        run: python -m src.validate_docs --strict
+
+  test-full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: install with CPU torch
+        run: |
+          pip install -r requirements.txt
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: full suite including the slow model-training tests
+        # -m "" clears the default 'not slow' filter from pytest.ini. CI is where the
+        # expensive end-to-end training tests should run; the local default stays fast.
+        run: pytest -m ""
+      - name: sequence-model smoke run
+        run: |
+          python -m src.generate_synthetic
+          python -m src.train_seq --arch cnn --epochs 2 --device cpu
