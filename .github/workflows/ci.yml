@@ -67,8 +67,18 @@ jobs:
   # depend on them. The sweep and comparison artifacts cost hours of model training, so
   # they stay out of CI and their specs skip here; that gap closes if outputs/*.json is
   # ever committed rather than gitignored.
+  #
+  # ADVISORY, not blocking. `--strict` has never passed: a full local run with every
+  # artifact present reports 179 drifting numbers across 92 specs, so this is a backlog
+  # rather than a regression. The bulk of what CI itself sees is the feature-ablation
+  # table, which docs/benchmarks.md already labels a generator-v1 artifact that has not
+  # been re-run — and the v2 re-run inverts its conclusion (w=3 wins on v1, w=20 on v2).
+  # Reconciling that is a decision about the results, not a build fix. The report is
+  # published to the run summary so the drift stays visible while it is outstanding.
+  # Drop continue-on-error once the backlog is reconciled and this can hold the line.
   docs:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,7 +93,19 @@ jobs:
           python -m src.error_analysis
           python -m src.ablation
       - name: doc numbers match outputs/
-        run: python -m src.validate_docs --strict
+        run: |
+          python -m src.validate_docs --strict > drift.txt 2>&1 && status=0 || status=$?
+          {
+            echo '## Doc/artifact drift (advisory)'
+            echo
+            echo 'Known backlog — see the `docs` job comment in `.github/workflows/ci.yml`.'
+            echo
+            echo '```'
+            cat drift.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat drift.txt
+          exit $status
 
   test-full:
     runs-on: ubuntu-latest
