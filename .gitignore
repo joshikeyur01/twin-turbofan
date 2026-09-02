@@ -4,6 +4,12 @@ __pycache__/
 venv/
 .pytest_cache/
 
+# Coverage artifacts — `make clean` already deletes these; pytest --cov rewrites
+# .coverage on every run, so tracking it just churns a binary blob in the history.
+.coverage
+.coverage.*
+htmlcov/
+
 # Real dataset (download locally, do not commit)
 data/CMAPSSData/
 
