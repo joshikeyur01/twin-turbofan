@@ -339,7 +339,10 @@ class TestSweptConfigEndToEnd:
 
         rows = json.loads((seq_outputs / "comparison.json").read_text())
         row = next(r for r in rows if r["model"] == "CNN")
-        assert row["config_source"] == "sweep_cnn.json"
+        # The "(single seed)" qualifier is load-bearing, not decoration: sweep.py ranks on
+        # one seed and rerank.py showed that ranking is mostly noise, so the provenance has
+        # to carry the caveat wherever the config is reported.
+        assert row["config_source"] == "sweep_cnn.json (single seed)"
         assert row["seq_len"] == 6 and row["hidden"] == 8
 
     def test_shared_config_flag_ignores_the_sweep(self, seq_outputs, monkeypatch):
@@ -369,7 +372,7 @@ class TestSweptConfigEndToEnd:
 
         rows = json.loads((seq_outputs / "comparison.json").read_text())
         row = next(r for r in rows if r["model"] == "CNN")
-        assert row["config_source"] == "shared"
+        assert row["config_source"] == "shared (never swept)"
         assert row["seq_len"] == 7 and row["hidden"] == 16
 
 

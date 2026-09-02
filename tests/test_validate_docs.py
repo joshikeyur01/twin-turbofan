@@ -327,12 +327,20 @@ class TestArtifactReader:
         assert meta["patience"] == 8
         assert "SYNTHETIC" in meta["data"]
 
+    @pytest.mark.skipif(
+        not (ROOT / "outputs" / "metrics.json").exists(),
+        reason="outputs/*.json is gitignored; run `make all` to populate it",
+    )
     def test_metrics_bullets_of_a_report_without_json(self):
         """``src/error_analysis.py`` emits no JSON, so its markdown is the only source.
 
         Checked against ``metrics.json`` rather than a literal: both artifacts come from
         the same run, so a hardcoded number here just goes stale every time the baseline
         is regenerated — which is the failure mode this whole module exists to prevent.
+
+        Guarded the same way as :class:`TestAgainstTheRealRepo`: ``metrics.json`` is
+        gitignored, so a bare checkout has nothing to compare against. Without the guard
+        this passes on any machine that has run the pipeline and fails in CI every time.
         """
         art = Artifacts(ROOT / "outputs")
         metrics = art.md_metrics("error_analysis.md")
